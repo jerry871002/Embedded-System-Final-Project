@@ -150,14 +150,14 @@ class ADXL345(IMU):
         aX = self.getXg()
         aY = self.getYg()
         aZ = self.getZg()
-        self.pitch = degrees(atan2(-aX, sqrt(aY * aY + aZ * aZ)))
+        self.pitch = degrees(atan2(aX, sqrt(aY * aY + aZ * aZ)))
         return self.pitch 
 
     def getRoll(self) :
         aX = self.getXg()
         aY = self.getYg()
         aZ = self.getZg()
-        self.roll = degrees(atan2(-aY, sqrt(aX * aX + aZ * aZ)))
+        self.roll = degrees(atan2(aY, sqrt(aX * aX + aZ * aZ)))
         return self.roll
 
 
@@ -289,7 +289,7 @@ class HMC5883L(IMU):
         self.write_byte(HMC5883L_CRB, 0b00100000) # configuration register B, 1.3 gain LSb / Gauss 1090 (default)
         self.write_byte(HMC5883L_MR, 0b00000000)  # mode register, continuous sampling
 
-    # degree: gauss
+    # unit: gauss
     def getX(self):
         self.X = (self.read_word_2c(HMC5883L_DO_X_H) - self.Xoffset) * self.scale
         return self.X
@@ -307,7 +307,7 @@ class gy801(object):
     def __init__(self):
         # accelorator caliberation
         ACC_X_OFFSET = 0.047
-        ACC_Y_OFFSET = -0.004
+        ACC_Y_OFFSET = -0.015
         ACC_Z_OFFSET = 0.099
 
         # compass caliberation
@@ -345,50 +345,124 @@ class gy801(object):
 
         return degrees(atan2(compy, compx) + self.mag.angle_offset)
 
-    def getGravity(self):
-        roll = radians(self.getRoll())
-        pitch = radians(self.getPitch())
-        yaw = radians(self.getYaw())
+    def getGravity(self, roll=None, pitch=None, yaw=None):
+        if not roll: roll = radians(self.getRoll())
+        if not pitch: pitch = radians(self.getPitch())
+        if not yaw: yaw = radians(self.getYaw())
 
-        return (R_x(roll) @ R_y(pitch) @ R_z(yaw) @ np.array([0, 0, -1])) * EARTH_GRAVITY_MS2
+        return (R_x(roll) @ R_y(pitch) @ R_z(yaw) @ np.array([0, 0, 1])) * EARTH_GRAVITY_MS2
 
-    def getLinearAcc(self):
-        gravX, gravY, gravZ = self.getGravity()
+    def getLinearAcc(self, roll=None, pitch=None, yaw=None, aX=None, aY=None, aZ=None):
+        gravX, gravY, gravZ = self.getGravity(roll, pitch, yaw)
 
-        aX = self.accel.getX()
-        aY = self.accel.getY()
-        aZ = self.accel.getZ()
+        if not aX: aX = self.accel.getX()
+        if not aY: aY = self.accel.getY()
+        if not aZ: aZ = self.accel.getZ()
 
         return aX - gravX, aY - gravY, aZ - gravZ
 
-    # algorithm for sensor fusion
-    def ahrs(self):
+    def _get_raw_data(self, duration):
         acc = []
         gyr = []
         mag = []
 
-        for i in range(10):
+        print('Start measuring...')
+        start_time = time.time()
+        while time.time() - start_time <= duration:
             acc.append([self.accel.getX(), self.accel.getY(), self.accel.getZ()])
             gyr.append([self.gyro.getX(), self.gyro.getY(), self.gyro.getZ()])
             mag.append([self.gyro.getX(), self.gyro.getY(), self.gyro.getZ()])
-            time.sleep(0.01)
+        print('Finish measuring...')
 
-        acc = np.array(acc) # unit: m/s2
-        gyr = np.array(gyr) # unit: dps
+        acc = np.array(acc)   # unit: m/s2
+        gyr = np.array(gyr)   # unit: dps
         gyr = np.radians(gyr) # unit: rad/s
-        mag = np.array(mag) # unit: gauss
-        mag = 0.1 * mag # unit: mT
+        mag = np.array(mag)   # unit: gauss
+        mag = 0.1 * mag       # unit: mT
 
-        acc = np.reshape(np.mean(acc, axis=0), (1, 3))
-        gyr = np.reshape(np.mean(gyr, axis=0), (1, 3))
-        mag = np.reshape(np.mean(mag, axis=0), (1, 3))
-        
-        x, y, z, w = ahrs.filters.Madgwick(acc=acc, gyr=gyr, mag=mag).Q[0]
-        roll = degrees(atan2(2*y*w + 2*x*z, 1 - 2*y*y - 2*z*z))
-        pitch = degrees(asin(2*x*y + 2*z*w))
-        yaw = degrees(atan2(2*x*w + 2*y*z, 1 - 2*x*x - 2*z*z))
+        return acc, gyr, mag
+
+    def _quaternion2euler(self, w, x, y, z):
+        roll = atan2(2 * (w*x + y*z), 1 - 2 * (x*x + y*y))
+        pitch = asin(2*w*y - 2*x*z)
+        yaw = atan2(2 * (w*z + x*y), 1 - 2 * (y*y + z*z))
 
         return roll, pitch, yaw
+
+    def measure_madgwick(self, duration, filename='measure_madgwick.csv'):
+        acc, gyr, mag = self._get_raw_data(duration)
+
+        df = pd.DataFrame()
+        for (w, x, y, z), (aX, aY, aZ) in zip(ahrs.filters.Madgwick(acc=acc, gyr=gyr, mag=mag, frequency=len(acc)/duration).Q, acc):
+            roll, pitch, yaw = self._quaternion2euler(w, x, y, z)
+
+            lax, lay, laz = self.getLinearAcc(roll, pitch, yaw, aX, aY, aZ)
+            elax, elay, elaz = R_x(roll) @ R_y(pitch) @ R_z(yaw) @ np.array([lax, lay, laz])
+
+            df = df.append({
+                    'ROLL': degrees(roll), 
+                    'PITCH': degrees(pitch),
+                    'YAW': degrees(yaw),
+                    'LINEAR ACCELERATION X': lax,
+                    'LINEAR ACCELERATION Y': lay,
+                    'LINEAR ACCELERATION Z': laz,
+                    'EARTH LINEAR ACCELERATION X': elax,
+                    'EARTH LINEAR ACCELERATION Y': elay,
+                    'EARTH LINEAR ACCELERATION Z': elaz,
+                }, ignore_index=True)
+
+        df.to_csv(filename)
+        return df
+    
+    def measure_kalman(self, duration, filename='measure_kalman.csv'):
+        acc, gyr, mag = self._get_raw_data(duration)
+
+        df = pd.DataFrame()
+        for (w, x, y, z), (aX, aY, aZ) in zip(ahrs.filters.EKF(acc=acc, gyr=gyr, mag=mag, frequency=len(acc)/duration).Q, acc):
+            roll, pitch, yaw = self._quaternion2euler(w, x, y, z)
+
+            lax, lay, laz = self.getLinearAcc(roll, pitch, yaw, aX, aY, aZ)
+            elax, elay, elaz = R_x(roll) @ R_y(pitch) @ R_z(yaw) @ np.array([lax, lay, laz])
+
+            df = df.append({
+                    'ROLL': degrees(roll), 
+                    'PITCH': degrees(pitch),
+                    'YAW': degrees(yaw),
+                    'LINEAR ACCELERATION X': lax,
+                    'LINEAR ACCELERATION Y': lay,
+                    'LINEAR ACCELERATION Z': laz,
+                    'EARTH LINEAR ACCELERATION X': elax,
+                    'EARTH LINEAR ACCELERATION Y': elay,
+                    'EARTH LINEAR ACCELERATION Z': elaz,
+                }, ignore_index=True)
+
+        df.to_csv(filename)
+        return df
+
+    def measure_complementary(self, duration, filename='measure_complementary.csv'):
+        acc, gyr, mag = self._get_raw_data(duration)
+
+        df = pd.DataFrame()
+        for (w, x, y, z), (aX, aY, aZ) in zip(ahrs.filters.Complementary(acc=acc, gyr=gyr, mag=mag, frequency=len(acc)/duration).Q, acc):
+            roll, pitch, yaw = self._quaternion2euler(w, x, y, z)
+
+            lax, lay, laz = self.getLinearAcc(roll, pitch, yaw, aX, aY, aZ)
+            elax, elay, elaz = R_x(roll) @ R_y(pitch) @ R_z(yaw) @ np.array([lax, lay, laz])
+
+            df = df.append({
+                    'ROLL': degrees(roll), 
+                    'PITCH': degrees(pitch),
+                    'YAW': degrees(yaw),
+                    'LINEAR ACCELERATION X': lax,
+                    'LINEAR ACCELERATION Y': lay,
+                    'LINEAR ACCELERATION Z': laz,
+                    'EARTH LINEAR ACCELERATION X': elax,
+                    'EARTH LINEAR ACCELERATION Y': elay,
+                    'EARTH LINEAR ACCELERATION Z': elaz,
+                }, ignore_index=True)
+
+        df.to_csv(filename)
+        return df
 
     # measure data for a duration, unit is second
     def measure(self, duration, filename='measure.csv'):
@@ -414,7 +488,6 @@ class gy801(object):
                     'EARTH LINEAR ACCELERATION Y': elay,
                     'EARTH LINEAR ACCELERATION Z': elaz,
                 }, ignore_index=True)
-            time.sleep(0.1)
 
         df.to_csv(filename)
         return df
