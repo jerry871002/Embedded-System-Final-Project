@@ -306,15 +306,15 @@ class HMC5883L(IMU):
 class gy801(object):
     def __init__(self):
         # accelorator caliberation
-        ACC_X_OFFSET = 0.047
-        ACC_Y_OFFSET = -0.015
-        ACC_Z_OFFSET = 0.099
+        ACC_X_OFFSET = -0.03
+        ACC_Y_OFFSET = 0.04
+        ACC_Z_OFFSET = 0.059
 
         # compass caliberation
         COM_X_OFFSET = 326.5
         COM_Y_OFFSET = 49.0
         COM_Z_OFFSET = -58.0
-        ANGLE_OFFSET = (4, 29) # (4, 29) for Taichung, (4, 32) for Hsinchu
+        ANGLE_OFFSET = (4, 32) # (4, 29) for Taichung, (4, 32) for Hsinchu
 
         self.accel = ADXL345(ACC_X_OFFSET, ACC_Y_OFFSET, ACC_Z_OFFSET)
         self.gyro = L3G4200D()

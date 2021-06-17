@@ -131,18 +131,18 @@ def fft(df, dt):
     df['z_ifft'] = np.fft.irfft(atten_z_fft, n=df.shape[0])
 
     plt.subplot(1, 3, 1)
-    plt.plot(df['Before'])
-    plt.plot(df['After'], label='x_ifft')
+    plt.plot(df['EARTH LINEAR ACCELERATION X'], label='Before')
+    plt.plot(df['x_ifft'], label='After')
     plt.legend()
 
     plt.subplot(1, 3, 2)
-    plt.plot(df['Before'])
-    plt.plot(df['After'], label='y_ifft')
+    plt.plot(df['EARTH LINEAR ACCELERATION Y'], label='Before')
+    plt.plot(df['y_ifft'], label='After')
     plt.legend()
 
     plt.subplot(1, 3, 3)
-    plt.plot(df['Before'])
-    plt.plot(df['After'], label='z_ifft')
+    plt.plot(df['EARTH LINEAR ACCELERATION Z'], label='Before')
+    plt.plot(df['z_ifft'], label='After')
     plt.legend()
     
     plt.savefig('ifft.png')

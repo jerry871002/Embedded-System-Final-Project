@@ -1,7 +1,7 @@
 import requests
   
 def line_message(msg):
-    token2 = "zle1Bi1MvdQEW390Vf5WqM6tLdb0SaOksYONslBh3tM"
+    token2 = "fMzINcJVBA2pp9iBqr2a3qPrqlVkWD0w1a0LZgTn1Tg"
     headers2 =  {
         "Authorization": "Bearer " + token2, 
         "Content-Type" : "application/x-www-form-urlencoded"
