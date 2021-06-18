@@ -29,19 +29,6 @@ def plot_trajectory_attenuated(df, dt):
     x = cumtrapz(cumtrapz(df['x_ifft'], dx=dt), dx=dt)
     y = cumtrapz(cumtrapz(df['y_ifft'], dx=dt), dx=dt)
     z = cumtrapz(cumtrapz(df['z_ifft'], dx=dt), dx=dt)
-    # Plot attenuated 3D Trajectory
-    # fig, ax = plt.subplots()
-    # fig.suptitle('3D Trajectory of IMU', fontsize=20)
-    # ax = plt.axes(projection='3d')
-    # ax.plot3D(x, y, z, c='red', lw=5, label='Attenuated IMU trajectory')
-    # ax.set_xlabel('X position (m)')
-    # ax.set_ylabel('Y position (m)')
-    # ax.set_zlabel('Z position (m)')
-    # # ax.legend(fontsize='x-large')
-
-    # plt.savefig('attenuated_trajectory.png')
-    # notifier.send_pic("Attenuated IMU trajectory: ", "attenuated_trajectory.png")
-    # plt.show()
 
     # Add XYZ axis arrows to indicate phone pose
     # Earth 3 axis unit vectors
@@ -67,19 +54,11 @@ def plot_trajectory_attenuated(df, dt):
     distance = np.sqrt(x[-1]**2 + y[-1]**2 + z[-1]**2)
     length = 0.05 * distance
     # Plot x vectors
-    # downsampling to every 10th arrow ([::10])
+    # downsampling to every 5th arrow ([::5])
     fig6, ax4 = plt.subplots()
     fig6.suptitle('IMU trajectory and pose',fontsize=20)
     ax4 = plt.axes(projection='3d')
     ax4.plot3D(x, y, z, c='red', lw=5, label='Attenuated IMU trajectory')
-    # plot x vectors
-    # ax4.quiver(x[::10],y[::10],z[::10],
-    #         body_x[0][::10],body_x[1][::10],body_x[2][::10],
-    #         color='b',label = 'x axis',length = length)
-    # Plot y vectors
-    # ax4.quiver(x[::10],y[::10],z[::10],
-    #         body_y[0][::10],body_y[1][::10],body_y[2][::10],
-    #         color='r',label = 'y axis',length = length)
     # plot z vectors
     ax4.quiver(x[::5],y[::5],z[::5],
             body_z[0][::5],body_z[1][::5],body_z[2][::5],
@@ -87,10 +66,6 @@ def plot_trajectory_attenuated(df, dt):
     ax4.set_xlabel('X position (m)')
     ax4.set_ylabel('Y position (m)')
     ax4.set_zlabel('Z position (m)')
-    # ax4.set_xlim(-0.5,0.5)# may need to vary
-    # ax4.set_ylim(-0.5,0.5)
-    # ax4.set_zlim(-0.5,0.5)
-    # ax4.legend(fontsize='x-large')
     
     plt.savefig('attenuated_trajectory_z_axiz.png')
     notifier.send_pic("Attenuated IMU trajectory with Z axis: ", "attenuated_trajectory_z_axiz.png")
