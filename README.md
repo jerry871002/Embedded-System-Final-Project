@@ -50,3 +50,9 @@ Checkout `main_without_esp32.py`
 ### Without ESP32
 
 Checkout `imu.py`
+
+## References
+
+- [Exploring Data Acquisition and Trajectory Tracking with Android Devices and Python](https://medium.com/analytics-vidhya/exploring-data-acquisition-and-trajectory-tracking-with-android-devices-and-python-9fdef38f25ee)
+- [AHRS](https://pypi.org/project/AHRS/)
+- [gborgonovo/gy801](https://github.com/gborgonovo/gy801)
