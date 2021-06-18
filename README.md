@@ -1,5 +1,4 @@
 # Swing Path Tracking
-@JasonChuangTW @chi1027 @jerry871002
 
 This is a repo of the final project of the embedded system course. (2021 spring)
 
